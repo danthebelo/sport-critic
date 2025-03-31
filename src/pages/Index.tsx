@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { ApiFootball } from "@/lib/api-client";
 import MainLayout from "@/components/layout/MainLayout";
@@ -8,7 +7,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarIcon, TrendingUp, Flame } from "lucide-react";
+import { CalendarIcon, TrendingUp, Flame, Star } from "lucide-react";
 
 const Index = () => {
   const { user } = useAuth();
@@ -94,7 +93,6 @@ const Index = () => {
           <h2 className="text-2xl font-bold mb-8">Latest Reviews</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* In a real app, we would fetch and display actual reviews here */}
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="rounded-lg overflow-hidden">
                 <Skeleton className="h-48 w-full" />
@@ -125,7 +123,7 @@ const Index = () => {
             
             <div className="flex flex-col items-center text-center p-6">
               <div className="w-16 h-16 rounded-full flex items-center justify-center bg-sport-secondary/10 text-sport-secondary mb-4">
-                <StarRating value={5} readonly />
+                <Star className="h-8 w-8" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Rate & Review</h3>
               <p className="text-muted-foreground">

@@ -1,8 +1,7 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, authService, userService, UserProfile } from '@/lib/supabase';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
@@ -26,7 +25,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Try to restore session on component mount
     const initAuth = async () => {
       const session = await authService.getSession();
       setSession(session);
@@ -34,7 +32,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         setUser(session.user);
         
-        // Fetch profile data
         const { data } = await userService.getProfile(session.user.id);
         setProfile(data as UserProfile);
       }
@@ -44,7 +41,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     initAuth();
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -145,7 +141,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await userService.upsertProfile(profileData);
       if (error) throw error;
       
-      // Refresh profile data
       const { data: updatedProfile } = await userService.getProfile(user.id);
       setProfile(updatedProfile as UserProfile);
       
