@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Types for Football API responses
 export interface Match {
@@ -54,6 +55,14 @@ export interface Match {
   }>;
 }
 
+export interface League {
+  id: number;
+  name: string;
+  logo: string;
+  country: string;
+  type?: string;
+}
+
 interface ApiResponse<T> {
   response: T;
   results: number;
@@ -104,6 +113,28 @@ const fetchFromApi = async <T>(endpoint: string, params: Record<string, string> 
   }
 };
 
+// Fetch from Supabase Edge Function
+const fetchFromEdgeFunction = async <T>(functionName: string, params: Record<string, string> = {}): Promise<T> => {
+  try {
+    const url = new URL(`${window.location.origin}/api/${functionName}`);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
+    });
+    
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Edge function fetch error:", error);
+    toast.error("Failed to fetch data. Please try again later.");
+    throw error;
+  }
+};
+
 // Mock data for development without API key
 const getMockData = <T>(endpoint: string): T => {
   // Mock live matches
@@ -111,6 +142,16 @@ const getMockData = <T>(endpoint: string): T => {
     return {
       response: MOCK_MATCHES,
       results: MOCK_MATCHES.length,
+      paging: { current: 1, total: 1 },
+      errors: []
+    } as unknown as T;
+  }
+  
+  // Mock leagues
+  if (endpoint === "/leagues") {
+    return {
+      response: MOCK_LEAGUES,
+      results: MOCK_LEAGUES.length,
       paging: { current: 1, total: 1 },
       errors: []
     } as unknown as T;
@@ -142,6 +183,54 @@ const getMockData = <T>(endpoint: string): T => {
 
 // API Methods
 export const ApiFootball = {
+  getLeagues: async (): Promise<League[]> => {
+    try {
+      // Primeiro, verifique se já temos ligas armazenadas no Supabase
+      const { data: storedLeagues, error } = await supabase
+        .from("competitions")
+        .select("*")
+        .order("importance");
+      
+      if (error) {
+        console.error("Erro ao buscar ligas do Supabase:", error);
+        throw error;
+      }
+      
+      if (storedLeagues && storedLeagues.length > 0) {
+        // Transforme os dados do Supabase para o formato esperado pela interface
+        return storedLeagues.map(league => ({
+          id: parseInt(league.short_name),
+          name: league.name,
+          logo: league.logo_url || "",
+          country: league.country || "",
+          type: league.type
+        }));
+      }
+      
+      // Se não tivermos dados no Supabase, tente buscar da Edge Function
+      try {
+        const data = await fetchFromEdgeFunction<{ data: any[] }>('get-leagues');
+        if (data.data && data.data.length > 0) {
+          return data.data.map(league => ({
+            id: parseInt(league.short_name),
+            name: league.name,
+            logo: league.logo_url || "",
+            country: league.country || "",
+            type: league.type
+          }));
+        }
+      } catch (edgeFunctionError) {
+        console.error("Erro ao buscar ligas da Edge Function:", edgeFunctionError);
+      }
+      
+      // Se ainda não tivermos dados, use os dados mock locais
+      return MOCK_LEAGUES;
+    } catch (error) {
+      console.error("Erro ao buscar ligas:", error);
+      return MOCK_LEAGUES;
+    }
+  },
+  
   getLiveMatches: async (): Promise<Match[]> => {
     const data = await fetchFromApi<ApiResponse<Match[]>>("/fixtures", { live: "all" });
     return data.response;
@@ -168,6 +257,13 @@ export const ApiFootball = {
   getMatchStatistics: async (fixtureId: number): Promise<Match> => {
     const data = await fetchFromApi<ApiResponse<Match[]>>(`/fixtures/${fixtureId}/statistics`);
     return data.response[0];
+  },
+  
+  // Métodos específicos para a NBA e outros esportes podem ser adicionados aqui
+  getNBAMatches: async (): Promise<Match[]> => {
+    // Em uma implementação real, chamaríamos uma API diferente para a NBA
+    // Por enquanto, apenas retornamos partidas fictícias
+    return MOCK_NBA_MATCHES;
   }
 };
 
@@ -325,4 +421,115 @@ const MOCK_STATISTICS = [
   { type: "Shots on Goal", value: 7 },
   { type: "Corners", value: 8 },
   { type: "Fouls", value: 10 }
+];
+
+// Mock leagues data
+const MOCK_LEAGUES: League[] = [
+  { id: 39, name: "Premier League", logo: "https://media.api-sports.io/football/leagues/39.png", country: "Inglaterra", type: "football" },
+  { id: 140, name: "La Liga", logo: "https://media.api-sports.io/football/leagues/140.png", country: "Espanha", type: "football" },
+  { id: 135, name: "Serie A", logo: "https://media.api-sports.io/football/leagues/135.png", country: "Itália", type: "football" },
+  { id: 78, name: "Bundesliga", logo: "https://media.api-sports.io/football/leagues/78.png", country: "Alemanha", type: "football" },
+  { id: 61, name: "Ligue 1", logo: "https://media.api-sports.io/football/leagues/61.png", country: "França", type: "football" },
+  { id: 71, name: "Brasileirão", logo: "https://media.api-sports.io/football/leagues/71.png", country: "Brasil", type: "football" },
+  { id: 1000, name: "NBA", logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/NBA-2024.png", country: "EUA", type: "basketball" }
+];
+
+// Mock NBA matches
+const MOCK_NBA_MATCHES: Match[] = [
+  {
+    id: 1001,
+    league: {
+      id: 1000,
+      name: "NBA",
+      logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/NBA-2024.png",
+      country: "EUA"
+    },
+    teams: {
+      home: {
+        id: 2001,
+        name: "Los Angeles Lakers",
+        logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/LAL.png"
+      },
+      away: {
+        id: 2002,
+        name: "Golden State Warriors",
+        logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/GSW.png"
+      }
+    },
+    goals: {
+      home: 110,
+      away: 105
+    },
+    fixture: {
+      id: 3001,
+      date: "2023-05-15T19:00:00+00:00",
+      status: {
+        short: "FT",
+        long: "Match Finished"
+      },
+      venue: {
+        name: "Crypto.com Arena",
+        city: "Los Angeles"
+      },
+      referee: "Scott Foster"
+    },
+    score: {
+      halftime: {
+        home: 52,
+        away: 48
+      },
+      fulltime: {
+        home: 110,
+        away: 105
+      }
+    }
+  },
+  {
+    id: 1002,
+    league: {
+      id: 1000,
+      name: "NBA",
+      logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/NBA-2024.png",
+      country: "EUA"
+    },
+    teams: {
+      home: {
+        id: 2003,
+        name: "Boston Celtics",
+        logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/BOS.png"
+      },
+      away: {
+        id: 2004,
+        name: "Miami Heat",
+        logo: "https://cdn.ssref.net/req/202403151/tlogo/bbr/MIA.png"
+      }
+    },
+    goals: {
+      home: 98,
+      away: 92
+    },
+    fixture: {
+      id: 3002,
+      date: "2023-05-16T18:45:00+00:00",
+      status: {
+        short: "LIVE",
+        long: "In Progress"
+      },
+      venue: {
+        name: "TD Garden",
+        city: "Boston"
+      },
+      referee: "Tony Brothers"
+    },
+    score: {
+      halftime: {
+        home: 46,
+        away: 44
+      },
+      fulltime: {
+        home: null,
+        away: null
+      }
+    }
+  }
 ];
