@@ -5,7 +5,7 @@ import MatchCard from "./MatchCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, FilterIcon, SearchIcon } from "lucide-react";
+import { CalendarIcon, FilterIcon, SearchIcon, TrophyIcon, ShirtIcon } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 
 interface MatchListProps {
@@ -13,7 +13,10 @@ interface MatchListProps {
   limit?: number;
   searchQuery?: string;
   leagueFilter?: string;
+  teamFilter?: string;
+  seasonFilter?: string;
   date?: Date;
+  sport?: "football" | "basketball";
 }
 
 const MatchList = ({ 
@@ -21,7 +24,10 @@ const MatchList = ({
   limit = 6, 
   searchQuery = "", 
   leagueFilter = "all",
-  date
+  teamFilter = "all",
+  seasonFilter = "2023",
+  date,
+  sport = "football"
 }: MatchListProps) => {
   const formattedDate = date ? format(date, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
 
@@ -30,25 +36,39 @@ const MatchList = ({
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["matches", type, formattedDate, leagueFilter],
+    queryKey: ["matches", type, formattedDate, leagueFilter, teamFilter, seasonFilter, sport],
     queryFn: async () => {
+      if (sport === "basketball") {
+        return ApiFootball.getNBAMatches(seasonFilter, teamFilter !== "all" ? teamFilter : undefined);
+      }
+      
       if (type === "live") {
-        return ApiFootball.getLiveMatches();
+        return ApiFootball.getLiveMatches(leagueFilter !== "all" ? leagueFilter : undefined);
       }
       
       if (type === "upcoming") {
-        return ApiFootball.getMatchesByDate(formattedDate);
+        return ApiFootball.getMatchesByDate(
+          formattedDate, 
+          leagueFilter !== "all" ? leagueFilter : undefined,
+          teamFilter !== "all" ? teamFilter : undefined,
+          seasonFilter
+        );
       }
       
       // Para partidas recentes, usamos a data de ontem como exemplo
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayFormatted = format(yesterday, "yyyy-MM-dd");
-      return ApiFootball.getMatchesByDate(yesterdayFormatted);
+      return ApiFootball.getMatchesByDate(
+        yesterdayFormatted, 
+        leagueFilter !== "all" ? leagueFilter : undefined,
+        teamFilter !== "all" ? teamFilter : undefined,
+        seasonFilter
+      );
     },
   });
 
-  // Filtrar as partidas com base na consulta de pesquisa e no filtro da liga
+  // Filtrar as partidas com base na consulta de pesquisa e nos filtros
   const filteredMatches = matches?.filter(match => {
     // Aplicar filtro de pesquisa
     const matchesSearch = searchQuery 
@@ -57,12 +77,18 @@ const MatchList = ({
         match.league.name.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
     
-    // Aplicar filtro de liga
+    // Filtro de liga já é aplicado na API, mas vamos verificar novamente para segurança
     const matchesLeague = leagueFilter === "all" 
       ? true 
       : match.league.id.toString() === leagueFilter;
     
-    return matchesSearch && matchesLeague;
+    // Filtro de time já é aplicado na API, mas vamos verificar novamente
+    const matchesTeam = teamFilter === "all"
+      ? true
+      : match.teams.home.id.toString() === teamFilter || 
+        match.teams.away.id.toString() === teamFilter;
+    
+    return matchesSearch && matchesLeague && matchesTeam;
   });
 
   // Ordenar partidas: ao vivo primeiro, depois as próximas ordenadas por data/hora
@@ -79,17 +105,29 @@ const MatchList = ({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Badge variant="outline" className="bg-muted">
-              <FilterIcon className="h-3 w-3 mr-1" />
-              {leagueFilter === "all" ? "Todas as Ligas" : "Liga Filtrada"}
-            </Badge>
+          <div className="flex gap-2 flex-wrap">
+            {leagueFilter !== "all" && (
+              <Badge variant="outline" className="bg-muted">
+                <TrophyIcon className="h-3 w-3 mr-1" />
+                Competição: {leagueFilter}
+              </Badge>
+            )}
+            {teamFilter !== "all" && (
+              <Badge variant="outline" className="bg-muted">
+                <ShirtIcon className="h-3 w-3 mr-1" />
+                Time: {teamFilter}
+              </Badge>
+            )}
             {searchQuery && (
               <Badge variant="outline" className="bg-muted">
                 <SearchIcon className="h-3 w-3 mr-1" />
                 Pesquisa: {searchQuery}
               </Badge>
             )}
+            <Badge variant="outline" className="bg-muted">
+              <FilterIcon className="h-3 w-3 mr-1" />
+              Temporada: {seasonFilter}
+            </Badge>
           </div>
           <Badge variant="outline" className="bg-muted">
             <CalendarIcon className="h-3 w-3 mr-1" />
@@ -119,17 +157,29 @@ const MatchList = ({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Badge variant="outline" className="bg-muted">
-              <FilterIcon className="h-3 w-3 mr-1" />
-              {leagueFilter === "all" ? "Todas as Ligas" : "Liga Filtrada"}
-            </Badge>
+          <div className="flex gap-2 flex-wrap">
+            {leagueFilter !== "all" && (
+              <Badge variant="outline" className="bg-muted">
+                <TrophyIcon className="h-3 w-3 mr-1" />
+                Competição: {leagueFilter}
+              </Badge>
+            )}
+            {teamFilter !== "all" && (
+              <Badge variant="outline" className="bg-muted">
+                <ShirtIcon className="h-3 w-3 mr-1" />
+                Time: {teamFilter}
+              </Badge>
+            )}
             {searchQuery && (
               <Badge variant="outline" className="bg-muted">
                 <SearchIcon className="h-3 w-3 mr-1" />
                 Pesquisa: {searchQuery}
               </Badge>
             )}
+            <Badge variant="outline" className="bg-muted">
+              <FilterIcon className="h-3 w-3 mr-1" />
+              Temporada: {seasonFilter}
+            </Badge>
           </div>
           <Badge variant="outline" className="bg-muted">
             <CalendarIcon className="h-3 w-3 mr-1" />
@@ -148,18 +198,30 @@ const MatchList = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex gap-2 flex-wrap">
-          <Badge variant="outline" className="bg-muted">
-            <FilterIcon className="h-3 w-3 mr-1" />
-            {leagueFilter === "all" ? "Todas as Ligas" : "Liga Filtrada"}
-          </Badge>
+          {leagueFilter !== "all" && (
+            <Badge variant="outline" className="bg-muted">
+              <TrophyIcon className="h-3 w-3 mr-1" />
+              Competição: {leagueFilter}
+            </Badge>
+          )}
+          {teamFilter !== "all" && (
+            <Badge variant="outline" className="bg-muted">
+              <ShirtIcon className="h-3 w-3 mr-1" />
+              Time: {teamFilter}
+            </Badge>
+          )}
           {searchQuery && (
             <Badge variant="outline" className="bg-muted">
               <SearchIcon className="h-3 w-3 mr-1" />
               Pesquisa: {searchQuery}
             </Badge>
           )}
+          <Badge variant="outline" className="bg-muted">
+            <FilterIcon className="h-3 w-3 mr-1" />
+            Temporada: {seasonFilter}
+          </Badge>
           {liveMatchesCount > 0 && (
             <Badge variant="default" className="bg-red-500">
               {liveMatchesCount} {liveMatchesCount === 1 ? 'partida ao vivo' : 'partidas ao vivo'}
