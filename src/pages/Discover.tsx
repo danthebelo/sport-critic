@@ -8,9 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ApiFootball } from "@/lib/api-client";
 import { useQuery } from "@tanstack/react-query";
 import MatchList from "@/components/matches/MatchList";
-import { Search, Calendar } from "lucide-react";
+import { Search, Calendar, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface League {
   id: number;
@@ -23,6 +28,9 @@ const Discover = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [leagueFilter, setLeagueFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
   const { 
     data: leagues,
@@ -52,8 +60,28 @@ const Discover = () => {
           }));
         }
         
-        // Se não tivermos dados no Supabase, busque da API
-        // Em um caso real, você provavelmente iria chamar sua Edge Function
+        // Se não tivermos dados no Supabase, busque da Edge Function
+        try {
+          const data = await fetch('/api/get-leagues');
+          if (!data.ok) {
+            throw new Error('Falha ao buscar ligas da Edge Function');
+          }
+          const jsonData = await data.json();
+          
+          if (jsonData.data && jsonData.data.length > 0) {
+            return jsonData.data.map(league => ({
+              id: parseInt(league.short_name),
+              name: league.name,
+              logo: league.logo_url || "",
+              country: league.country || ""
+            }));
+          }
+        } catch (edgeFunctionError) {
+          console.error("Erro ao buscar ligas da Edge Function:", edgeFunctionError);
+          toast.error("Falha ao carregar ligas. Utilizando dados de demonstração.");
+        }
+        
+        // Fallback para dados mock caso tudo falhe
         return [
           { id: 39, name: "Premier League", logo: "https://media.api-sports.io/football/leagues/39.png", country: "Inglaterra" },
           { id: 140, name: "La Liga", logo: "https://media.api-sports.io/football/leagues/140.png", country: "Espanha" },
@@ -70,6 +98,16 @@ const Discover = () => {
       }
     },
   });
+
+  const handleCommandSelect = (league: string) => {
+    setLeagueFilter(league);
+    setOpen(false);
+  };
+
+  const handleCalendarSelect = (date: Date | undefined) => {
+    setDate(date);
+    setCalendarOpen(false);
+  };
   
   return (
     <MainLayout>
@@ -87,20 +125,39 @@ const Discover = () => {
             />
           </div>
           
-          <div className="flex gap-2">
-            <Select value={leagueFilter} onValueChange={setLeagueFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Liga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Ligas</SelectItem>
-                {!isLoadingLeagues && leagues?.map((league) => (
-                  <SelectItem key={league.id} value={league.id.toString()}>
-                    {league.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap gap-2">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[180px] justify-between">
+                  {leagueFilter === "all" ? "Todas as Ligas" : 
+                    leagues?.find(l => l.id.toString() === leagueFilter)?.name || "Selecione"}
+                  <Filter className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar liga..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma liga encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem onSelect={() => handleCommandSelect("all")}>
+                        Todas as Ligas
+                      </CommandItem>
+                      {!isLoadingLeagues && leagues?.map((league) => (
+                        <CommandItem
+                          key={league.id}
+                          onSelect={() => handleCommandSelect(league.id.toString())}
+                          className="flex items-center gap-2"
+                        >
+                          <img src={league.logo} alt={league.name} className="w-5 h-5 object-contain" />
+                          {league.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
@@ -114,9 +171,23 @@ const Discover = () => {
               </SelectContent>
             </Select>
             
-            <Button variant="outline" size="icon">
-              <Calendar className="h-4 w-4" />
-            </Button>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[180px] justify-between">
+                  {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Selecione data"}
+                  <Calendar className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={date}
+                  onSelect={handleCalendarSelect}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         
@@ -132,17 +203,28 @@ const Discover = () => {
             <div className="space-y-8">
               <div>
                 <h2 className="text-xl font-semibold mb-4">Partidas ao Vivo</h2>
-                <MatchList type="live" limit={3} />
+                <MatchList type="live" limit={3} searchQuery={searchQuery} leagueFilter={leagueFilter} />
               </div>
               
               <div>
                 <h2 className="text-xl font-semibold mb-4">Partidas de Hoje</h2>
-                <MatchList type="upcoming" limit={6} />
+                <MatchList 
+                  type="upcoming" 
+                  limit={6} 
+                  searchQuery={searchQuery} 
+                  leagueFilter={leagueFilter} 
+                  date={date} 
+                />
               </div>
               
               <div>
                 <h2 className="text-xl font-semibold mb-4">Partidas Recentes</h2>
-                <MatchList type="recent" limit={6} />
+                <MatchList 
+                  type="recent" 
+                  limit={6} 
+                  searchQuery={searchQuery} 
+                  leagueFilter={leagueFilter} 
+                />
               </div>
             </div>
           </TabsContent>

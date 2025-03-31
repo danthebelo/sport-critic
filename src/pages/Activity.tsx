@@ -14,16 +14,16 @@ const Activity = () => {
       <MainLayout>
         <div className="container py-16">
           <div className="max-w-md mx-auto text-center space-y-4">
-            <h1 className="text-3xl font-bold">Join the Community</h1>
+            <h1 className="text-3xl font-bold">Junte-se à Comunidade</h1>
             <p className="text-muted-foreground">
-              Sign in to see activity from users you follow and share your own match reviews.
+              Faça login para ver atividades de usuários que você segue e compartilhar suas próprias avaliações de partidas.
             </p>
             <div className="flex justify-center gap-4 mt-4">
               <Button asChild>
-                <Link to="/login">Sign In</Link>
+                <Link to="/login">Entrar</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link to="/register">Create Account</Link>
+                <Link to="/register">Criar Conta</Link>
               </Button>
             </div>
           </div>
@@ -35,28 +35,28 @@ const Activity = () => {
   return (
     <MainLayout>
       <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-6">Activity Feed</h1>
+        <h1 className="text-3xl font-bold mb-6">Feed de Atividades</h1>
         
         <Tabs defaultValue="following">
           <TabsList className="mb-6">
-            <TabsTrigger value="following">Following</TabsTrigger>
-            <TabsTrigger value="trending">Trending</TabsTrigger>
-            <TabsTrigger value="recent">Recent</TabsTrigger>
+            <TabsTrigger value="following">Seguindo</TabsTrigger>
+            <TabsTrigger value="trending">Em Alta</TabsTrigger>
+            <TabsTrigger value="recent">Recentes</TabsTrigger>
           </TabsList>
           
           <TabsContent value="following">
             <div className="space-y-4">
-              {/* In a real app, we would fetch and display actual activity here */}
+              {/* Em um aplicativo real, buscaríamos e exibiríamos atividades reais aqui */}
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-32 w-full" />
               ))}
               
               <div className="text-center p-8">
                 <p className="text-muted-foreground mb-4">
-                  Follow more users to see their activity in your feed
+                  Siga mais usuários para ver as atividades deles em seu feed
                 </p>
                 <Button asChild variant="outline">
-                  <Link to="/discover">Discover Users</Link>
+                  <Link to="/discover">Descobrir Usuários</Link>
                 </Button>
               </div>
             </div>

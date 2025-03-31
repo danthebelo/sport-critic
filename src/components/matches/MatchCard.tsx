@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Match } from "@/lib/api-client";
 import { formatDistanceToNow, format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface MatchCardProps {
   match: Match;
@@ -15,15 +16,15 @@ const MatchCard = ({ match }: MatchCardProps) => {
   const matchDate = parseISO(match.fixture.date);
   
   const getStatusText = () => {
-    if (isLive) return "LIVE";
-    if (isFinished) return "Finished";
-    return format(matchDate, "MMM dd, HH:mm");
+    if (isLive) return "AO VIVO";
+    if (isFinished) return "Encerrado";
+    return format(matchDate, "dd MMM, HH:mm", { locale: ptBR });
   };
   
   const getRelativeTime = () => {
-    if (isLive) return "Live now";
-    if (isFinished) return `${formatDistanceToNow(matchDate)} ago`;
-    return `In ${formatDistanceToNow(matchDate)}`;
+    if (isLive) return "Acontecendo agora";
+    if (isFinished) return `${formatDistanceToNow(matchDate, { locale: ptBR })} atrás`;
+    return `Em ${formatDistanceToNow(matchDate, { locale: ptBR })}`;
   };
   
   return (
@@ -34,7 +35,7 @@ const MatchCard = ({ match }: MatchCardProps) => {
             {isLive && (
               <div className="absolute top-0 left-0 bg-red-500 text-white text-xs px-2 py-1 rounded-br-md flex items-center">
                 <span className="animate-pulse w-2 h-2 bg-white rounded-full mr-1"></span>
-                LIVE
+                AO VIVO
               </div>
             )}
             <div className="p-4 bg-gradient-to-r from-sport-primary/10 to-sport-secondary/10">

@@ -95,12 +95,36 @@ serve(async (req: Request) => {
       if (data.response && data.response.length > 0) {
         const league = data.response[0] as League;
         
+        let leagueName = league.league.name;
+        let leagueCountry = league.country.name;
+        
+        // Traduzir nomes de ligas e países para português
+        if (leagueId === 39) {
+          leagueName = "Premier League";
+          leagueCountry = "Inglaterra";
+        } else if (leagueId === 140) {
+          leagueName = "La Liga";
+          leagueCountry = "Espanha";
+        } else if (leagueId === 135) {
+          leagueName = "Serie A";
+          leagueCountry = "Itália";
+        } else if (leagueId === 78) {
+          leagueName = "Bundesliga";
+          leagueCountry = "Alemanha";
+        } else if (leagueId === 61) {
+          leagueName = "Ligue 1";
+          leagueCountry = "França";
+        } else if (leagueId === 71) {
+          leagueName = "Brasileirão";
+          leagueCountry = "Brasil";
+        }
+        
         leaguesData.push({
           id: crypto.randomUUID(),
-          name: league.league.name,
+          name: leagueName,
           short_name: league.league.id.toString(),
           type: 'football',
-          country: league.country.name,
+          country: leagueCountry,
           logo_url: league.league.logo,
           importance: footballLeaguesIds.indexOf(leagueId) + 1,
           created_at: new Date().toISOString(),
@@ -115,7 +139,7 @@ serve(async (req: Request) => {
       name: 'NBA',
       short_name: '1000',
       type: 'basketball',
-      country: 'USA',
+      country: 'EUA',
       logo_url: 'https://cdn.ssref.net/req/202403151/tlogo/bbr/NBA-2024.png',
       importance: footballLeaguesIds.length + 1,
       created_at: new Date().toISOString(),
